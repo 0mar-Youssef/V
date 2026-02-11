@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title></title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button id="resetBtn" class="chip danger"></button>
+    </header>
+
+    <main class="page">
+      <section class="card" id="card" aria-live="polite">
+        <h1 class="title" id="titleLine"></h1>
+        <p class="prompt" id="prompt"></p>
+        <p class="subtext hidden" id="subtext"></p>
+
+        <div class="interaction" id="interaction"></div>
+
+        <p class="caption" id="caption"></p>
+        <div class="progress-dots" id="progressDots"></div>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="easterModal" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <h2 id="easterTitle"></h2>
+        <p id="easterPrompt"></p>
+        <div class="modal-actions" id="easterActions"></div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

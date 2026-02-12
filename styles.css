@@ -798,6 +798,70 @@ input:focus-visible {
   transition: width 120ms linear;
 }
 
+.decode-stage {
+  width: min(520px, 100%);
+}
+
+.decode-phone {
+  border-radius: 20px;
+  border: 1px solid rgba(213, 170, 187, 0.6);
+  background: linear-gradient(165deg, rgba(255, 252, 254, 0.98), rgba(247, 232, 239, 0.92));
+  padding: 14px;
+  box-shadow: 0 12px 24px rgba(24, 14, 22, 0.12);
+  display: grid;
+  gap: 10px;
+}
+
+.decode-typing {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7a4f60;
+}
+
+.decode-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #7b5565;
+}
+
+.decode-label.omar {
+  margin-top: 4px;
+}
+
+.decode-bubble {
+  background: #ffeaf1;
+  border: 1px solid rgba(221, 153, 182, 0.52);
+  border-radius: 16px;
+  padding: 12px;
+  color: #37262f;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.decode-options {
+  display: grid;
+  gap: 10px;
+}
+
+.decode-option {
+  border: 1px solid #ead8dd;
+  border-radius: 14px;
+  background: #fff;
+  min-height: 48px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  color: #2a1f25;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.decode-option:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(20, 10, 15, 0.1);
+}
+
 .quiz-options {
   display: flex;
   gap: 12px;

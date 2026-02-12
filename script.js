@@ -5,6 +5,10 @@ const COPY = {
   title: 'Dana',
   pageTitle: 'Dana Valentine',
   progressLabel: 'Progress',
+  jumpLabel: 'Jump',
+  jumpLabelAria: 'Jump to level',
+  jumpPrompt: 'Enter level number to jump to:',
+  jumpInvalid: 'Please enter a valid level number.',
   resetLabel: 'Reset',
   resetConfirm: 'Reset progress?',
   resetLabelAria: 'Reset progress',
@@ -120,6 +124,14 @@ const COPY = {
       early: 'Commitment issues?',
       success: 'Charged.'
     },
+    decodeText: {
+      prompt: "Decode Dana's Text",
+      intro: "Now what we have all been waiting for! Decode Dana's Text! Now you can roleplay as Omar! What would Omar Choose?",
+      typing: 'Dana is typing...',
+      danaLabel: 'Dana is texting this...',
+      omarLabel: 'As Omar, what do you choose?',
+      success: 'Perfect Omar response.'
+    },
     trick: {
       prompt: 'How many letters are in “my valentine”?',
       options: ['7', '8', '9', '10'],
@@ -218,6 +230,7 @@ const captionEl = document.getElementById('caption');
 const interactionEl = document.getElementById('interaction');
 const progressDotsEl = document.getElementById('progressDots');
 const cardEl = document.getElementById('card');
+const jumpBtn = document.getElementById('jumpBtn');
 const resetBtn = document.getElementById('resetBtn');
 const easterModal = document.getElementById('easterModal');
 const easterTitle = document.getElementById('easterTitle');
@@ -228,6 +241,8 @@ const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)
 
 titleLine.textContent = COPY.title;
 document.title = COPY.pageTitle;
+jumpBtn.textContent = COPY.jumpLabel;
+jumpBtn.setAttribute('aria-label', COPY.jumpLabelAria);
 resetBtn.textContent = COPY.resetLabel;
 resetBtn.setAttribute('aria-label', COPY.resetLabelAria);
 progressDotsEl.setAttribute('aria-label', COPY.progressLabel);
@@ -554,6 +569,21 @@ function resetGame() {
   renderLevel(0);
 }
 
+function jumpToLevel() {
+  const maxLevel = levels.length;
+  const currentLevel = gameState.currentLevelIndex + 1;
+  const input = window.prompt(`${COPY.jumpPrompt} (1-${maxLevel})`, `${currentLevel}`);
+  if (input === null) return;
+  const parsed = Number.parseInt(input.trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > maxLevel) {
+    setCaption(COPY.jumpInvalid);
+    return;
+  }
+  gameState.currentLevelIndex = parsed - 1;
+  renderLevel(gameState.currentLevelIndex);
+  saveProgress();
+}
+
 function updateVoiceEnabled() {
   if (!('speechSynthesis' in window)) {
     setCaption('Voice unavailable in this browser.');
@@ -572,6 +602,13 @@ function updateProgressDots() {
     dot.classList.toggle('current', index === gameState.currentLevelIndex);
     dot.classList.toggle('done', gameState.completedLevels.has(index));
   });
+}
+
+function stopNarration() {
+  if (!('speechSynthesis' in window)) return;
+  pendingSpeech = null;
+  activeSpeechText = null;
+  window.speechSynthesis.cancel();
 }
 
 function celebrate() {
@@ -626,6 +663,7 @@ function celebrate() {
 }
 
 function nextLevel() {
+  stopNarration();
   gameState.completedLevels.add(gameState.currentLevelIndex);
   if (gameState.currentLevelIndex < levels.length - 1) {
     gameState.currentLevelIndex += 1;
@@ -635,6 +673,7 @@ function nextLevel() {
 }
 
 function renderLevel(index) {
+  stopNarration();
   if (activeCleanup) {
     activeCleanup();
     activeCleanup = null;
@@ -1737,7 +1776,7 @@ const levels = [
       let index = 0;
       let correctCount = 0;
       let skipLogicOn = false;
-      let lastCorrectOptionIndex = null;
+      let correctSlotCursor = 0;
       let successTimer = null;
       const totalQuestions = questions.length;
 
@@ -1774,16 +1813,18 @@ const levels = [
 
         let optionsToRender = [...current.opts];
         if (!current.skipLogic && current.answer) {
-          let tries = 0;
-          let shuffled = shuffleArray(optionsToRender);
-          while (tries < 10 && shuffled.indexOf(current.answer) === lastCorrectOptionIndex && optionsToRender.length > 1) {
-            shuffled = shuffleArray(optionsToRender);
-            tries += 1;
-          }
-          optionsToRender = shuffled;
-          const nextCorrectIndex = optionsToRender.indexOf(current.answer);
-          if (nextCorrectIndex !== -1) {
-            lastCorrectOptionIndex = nextCorrectIndex;
+          const slotOrder = [1, 3, 0, 2];
+          const targetSlot = slotOrder[correctSlotCursor % slotOrder.length] % current.opts.length;
+          correctSlotCursor += 1;
+          const distractors = shuffleArray(current.opts.filter(opt => opt !== current.answer));
+          optionsToRender = new Array(current.opts.length);
+          optionsToRender[targetSlot] = current.answer;
+          let distractorIndex = 0;
+          for (let i = 0; i < optionsToRender.length; i += 1) {
+            if (optionsToRender[i] === undefined) {
+              optionsToRender[i] = distractors[distractorIndex];
+              distractorIndex += 1;
+            }
           }
         }
 
@@ -2036,128 +2077,160 @@ const levels = [
     }
   },
   {
-    id: 'hold-meter',
-    title: 'Hold to Fill',
-    prompt: COPY.levels.hold.prompt,
+    id: 'decode-dana-text',
+    title: "Decode Dana's Text",
+    prompt: COPY.levels.decodeText.prompt,
     render(container) {
-      const meter = document.createElement('div');
-      meter.className = 'meter';
-      const fill = document.createElement('div');
-      fill.className = 'meter-fill';
-      meter.appendChild(fill);
-      const holdBtn = document.createElement('button');
-      holdBtn.className = 'btn primary';
-      holdBtn.textContent = COPY.levels.hold.button;
-      holdBtn.setAttribute('aria-label', COPY.levels.hold.button);
-      container.appendChild(meter);
-      container.appendChild(holdBtn);
+      const stage = document.createElement('div');
+      stage.className = 'decode-stage';
+      const phone = document.createElement('div');
+      phone.className = 'decode-phone';
+      const typing = document.createElement('div');
+      typing.className = 'decode-typing';
+      typing.textContent = COPY.levels.decodeText.typing;
+      const danaLabel = document.createElement('div');
+      danaLabel.className = 'decode-label';
+      danaLabel.textContent = COPY.levels.decodeText.danaLabel;
+      const bubble = document.createElement('div');
+      bubble.className = 'decode-bubble';
+      const omarLabel = document.createElement('div');
+      omarLabel.className = 'decode-label omar';
+      omarLabel.textContent = COPY.levels.decodeText.omarLabel;
+      const options = document.createElement('div');
+      options.className = 'decode-options';
 
-      let progress = 0;
-      let mode = 'idle';
-      let holdStart = 0;
-      let rafId = null;
-      let lastTime = null;
-      let completed = false;
+      phone.appendChild(typing);
+      phone.appendChild(danaLabel);
+      phone.appendChild(bubble);
+      phone.appendChild(omarLabel);
+      phone.appendChild(options);
+      stage.appendChild(phone);
+      container.appendChild(stage);
 
-      const updateMeter = () => {
-        fill.style.width = `${progress}%`;
+      const rounds = [
+        {
+          text: "I'm not hungry",
+          choices: [
+            { key: 'A', label: 'Listen to her.' },
+            { key: 'B', label: 'Begin driving to the nearest Chipotle.' },
+            { key: 'C', label: 'Agree with her and go order a meal for yourself.' },
+            { key: 'D', label: "Beg her to tell you what she's craving, then after the 4th time give her options." }
+          ],
+          answer: 'D',
+          reaction: 'Correct. Real Omar behavior detected.'
+        },
+        {
+          text: "I'm fine.",
+          choices: [
+            { key: 'A', label: 'Say okay and disappear.' },
+            { key: 'B', label: 'Send one thumbs-up and mute the chat.' },
+            { key: 'C', label: 'Ask what happened and stay until she smiles.' },
+            { key: 'D', label: 'Start talking about sports.' }
+          ],
+          answer: 'C',
+          reaction: 'Exactly. Ask, then stay.'
+        },
+        {
+          text: "No no, you pick.",
+          choices: [
+            { key: 'A', label: 'Pick something random and never check if she likes it.' },
+            { key: 'B', label: 'Say "idk" back.' },
+            { key: 'C', label: 'Pick two options you know she likes and let her choose the final one.' },
+            { key: 'D', label: 'Cancel plans immediately.' }
+          ],
+          answer: 'C',
+          reaction: 'Yup. Controlled choices = peace.'
+        },
+        {
+          text: "Do whatever you want.",
+          choices: [
+            { key: 'A', label: 'Believe that literally.' },
+            { key: 'B', label: 'Pick the safest plan and confirm twice.' },
+            { key: 'C', label: 'Ignore it and ask your group chat.' },
+            { key: 'D', label: 'Go silent for an hour.' }
+          ],
+          answer: 'B',
+          reaction: 'Smart. Confirmation saves lives.'
+        },
+        {
+          text: "I said I do NOT want dessert.",
+          choices: [
+            { key: 'A', label: 'Respect it fully and never mention sweets.' },
+            { key: 'B', label: 'Order one spoon and one napkin only.' },
+            { key: 'C', label: 'Get dessert with two forks and act surprised when she takes bites.' },
+            { key: 'D', label: 'Order a salad as dessert.' }
+          ],
+          answer: 'C',
+          reaction: 'Certified Omar answer.'
+        }
+      ];
+
+      let roundIndex = 0;
+      let revealTimer = null;
+      let nextTimer = null;
+      let locked = false;
+
+      const renderRound = () => {
+        const round = rounds[roundIndex];
+        setSubtext(`Round ${roundIndex + 1}/${rounds.length}`);
+        typing.classList.remove('hidden');
+        danaLabel.classList.add('hidden');
+        bubble.classList.add('hidden');
+        omarLabel.classList.add('hidden');
+        options.innerHTML = '';
+        locked = true;
+        revealTimer = setTimeout(() => {
+          typing.classList.add('hidden');
+          danaLabel.classList.remove('hidden');
+          bubble.classList.remove('hidden');
+          omarLabel.classList.remove('hidden');
+          bubble.textContent = `Dana says: "${round.text}"`;
+          round.choices.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.className = 'decode-option';
+            btn.dataset.choice = choice.key;
+            btn.textContent = `${choice.key}) ${choice.label}`;
+            btn.setAttribute('aria-label', `${choice.key}) ${choice.label}`);
+            options.appendChild(btn);
+          });
+          locked = false;
+        }, 800);
       };
 
-      const stopAnimation = () => {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-        lastTime = null;
-      };
-
-      const tick = (time) => {
-        if (mode === 'idle') {
-          stopAnimation();
+      const onOption = (event) => {
+        if (locked) return;
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const button = target.closest('.decode-option');
+        if (!button) return;
+        const picked = button.dataset.choice;
+        const round = rounds[roundIndex];
+        if (!picked) return;
+        if (picked !== round.answer) {
+          playSound('error');
+          recordAttempt('decode-dana-text');
+          sayWrong();
           return;
         }
-        if (!lastTime) lastTime = time;
-        const dt = time - lastTime;
-        lastTime = time;
-
-        if (mode === 'hold') {
-          progress += dt * 0.03;
-        } else if (mode === 'drain') {
-          progress -= dt * 0.02;
-        }
-
-        progress = clamp(progress, 0, 100);
-        updateMeter();
-
-        if (mode === 'hold' && progress >= 100 && time - holdStart >= 2500) {
-          completed = true;
-          mode = 'idle';
-          playSound('success');
-          setCaption(COPY.levels.hold.success);
-          holdBtn.classList.add('pop');
-          setTimeout(() => nextLevel(), 700);
-          stopAnimation();
+        playSound('success');
+        setCaption(round.reaction);
+        roundIndex += 1;
+        if (roundIndex >= rounds.length) {
+          dnaSpeak(COPY.levels.decodeText.success);
+          nextTimer = setTimeout(() => nextLevel(), 850);
           return;
         }
-
-        if (mode === 'drain' && progress <= 0) {
-          mode = 'idle';
-          stopAnimation();
-          return;
-        }
-
-        rafId = requestAnimationFrame(tick);
+        renderRound();
       };
 
-      const startAnimation = () => {
-        if (!rafId) {
-          rafId = requestAnimationFrame(tick);
-        }
-      };
-
-      const onDown = () => {
-        if (completed) return;
-        if (mode === 'hold') return;
-        playSound('click');
-        mode = 'hold';
-        holdStart = performance.now();
-        startAnimation();
-      };
-
-      const onUp = () => {
-        if (completed) return;
-        if (mode === 'hold') {
-          setCaption(COPY.levels.hold.early);
-          mode = 'drain';
-          startAnimation();
-        }
-      };
-
-      const onKeyDown = (event) => {
-        if (event.key === ' ' || event.key === 'Enter') {
-          event.preventDefault();
-          onDown();
-        }
-      };
-
-      const onKeyUp = (event) => {
-        if (event.key === ' ' || event.key === 'Enter') {
-          event.preventDefault();
-          onUp();
-        }
-      };
-
-      holdBtn.addEventListener('pointerdown', onDown);
-      window.addEventListener('pointerup', onUp);
-      window.addEventListener('pointercancel', onUp);
-      holdBtn.addEventListener('keydown', onKeyDown);
-      holdBtn.addEventListener('keyup', onKeyUp);
+      options.addEventListener('click', onOption);
+      dnaSpeak(COPY.levels.decodeText.intro);
+      renderRound();
 
       return () => {
-        holdBtn.removeEventListener('pointerdown', onDown);
-        window.removeEventListener('pointerup', onUp);
-        window.removeEventListener('pointercancel', onUp);
-        holdBtn.removeEventListener('keydown', onKeyDown);
-        holdBtn.removeEventListener('keyup', onKeyUp);
-        stopAnimation();
+        options.removeEventListener('click', onOption);
+        if (revealTimer) clearTimeout(revealTimer);
+        if (nextTimer) clearTimeout(nextTimer);
       };
     }
   },
@@ -2788,6 +2861,8 @@ const levels = [
     }
   }
 ];
+
+jumpBtn.addEventListener('click', jumpToLevel);
 
 resetBtn.addEventListener('click', () => {
   const confirmed = window.confirm(COPY.resetConfirm);

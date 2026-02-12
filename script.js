@@ -559,6 +559,7 @@ function dnaSpeak(text, onStart, options = null) {
 }
 
 function sayWrong() {
+  if (isNarrationStillPlaying()) return;
   const jokes = COPY.wrongJokes;
   const line = jokes[Math.floor(Math.random() * jokes.length)];
   dnaSpeak(line);
@@ -608,9 +609,11 @@ function loadVoices() {
 
 function getNarratorVoice() {
   if (!cachedVoices.length) return null;
-  const ralphUs = cachedVoices.find(voice => /ralph/i.test(voice.name) && /en[-_]us/i.test(voice.lang || ''));
-  const ralphAny = cachedVoices.find(voice => /ralph/i.test(voice.name));
-  const preferred = ralphUs || ralphAny || null;
+  const ralphUriExact = cachedVoices.find(voice => /voice\.Ralph$/i.test(voice.voiceURI || ''));
+  const ralphNameUsExact = cachedVoices.find(voice => /^ralph$/i.test(voice.name || '') && /en[-_]us/i.test(voice.lang || ''));
+  const ralphUs = cachedVoices.find(voice => /ralph/i.test(voice.name || '') && /en[-_]us/i.test(voice.lang || ''));
+  const ralphAny = cachedVoices.find(voice => /ralph/i.test(voice.name || '') || /voice\.Ralph$/i.test(voice.voiceURI || ''));
+  const preferred = ralphUriExact || ralphNameUsExact || ralphUs || ralphAny || null;
   if (preferred) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/85d475ed-9e72-424c-b943-8677cb8160dc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix-2',hypothesisId:'H6',location:'script.js:getNarratorVoice:selectedRalph',message:'selected narrator voice',data:{voiceName:preferred.name,voiceLang:preferred.lang,voiceLocalService:preferred.localService},timestamp:Date.now()})}).catch(()=>{});
